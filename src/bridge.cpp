@@ -66,6 +66,7 @@ bool verify_ui_credits(const std::filesystem::path& ui_dir) {
             return false;
         }
     }
+    return true;
 }
 
 } // namespace
