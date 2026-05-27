@@ -67,22 +67,29 @@ set_target_properties(version PROPERTIES
 
 # Copy MinGW runtime DLLs to build directory
 if(MINGW)
+  execute_process(
+    COMMAND ${CMAKE_CXX_COMPILER} -print-search-dirs
+    OUTPUT_VARIABLE mingw_search_dirs
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+  )
+
   set(mingw_runtime_search_roots)
-  foreach(search_root /usr /usr/local /opt)
-    if(EXISTS "${search_root}")
-      list(APPEND mingw_runtime_search_roots "${search_root}")
+  foreach(search_line libraries programs)
+    string(REGEX MATCH "${search_line}: =([^\n]+)" _ "${mingw_search_dirs}")
+    if(CMAKE_MATCH_1)
+      string(REPLACE ":" ";" search_paths "${CMAKE_MATCH_1}")
+      list(APPEND mingw_runtime_search_roots ${search_paths})
     endif()
   endforeach()
 
-  if(NOT mingw_runtime_search_roots)
-    set(mingw_runtime_search_roots /usr)
-  endif()
+  list(REMOVE_DUPLICATES mingw_runtime_search_roots)
 
   foreach(runtime_dll libgcc_s_seh-1.dll libstdc++-6.dll libwinpthread-1.dll)
-    execute_process(
-      COMMAND find ${mingw_runtime_search_roots} -type f -name ${runtime_dll} -print -quit
-      OUTPUT_VARIABLE runtime_dll_path
-      OUTPUT_STRIP_TRAILING_WHITESPACE
+    unset(runtime_dll_path CACHE)
+    find_file(runtime_dll_path
+      NAMES ${runtime_dll}
+      PATHS ${mingw_runtime_search_roots}
+      NO_DEFAULT_PATH
     )
 
     if(runtime_dll_path)
