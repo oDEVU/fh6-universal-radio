@@ -67,16 +67,40 @@ set_target_properties(version PROPERTIES
 
 # Copy MinGW runtime DLLs to build directory
 if(MINGW)
-  set(MINGW_DLL_DIR "/usr/x86_64-w64-mingw32/sys-root/mingw/bin")
-  add_custom_command(TARGET version POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E copy_if_different
-      "${MINGW_DLL_DIR}/libgcc_s_seh-1.dll"
-      "$<TARGET_FILE_DIR:version>/libgcc_s_seh-1.dll"
-    COMMAND ${CMAKE_COMMAND} -E copy_if_different
-      "${MINGW_DLL_DIR}/libstdc++-6.dll"
-      "$<TARGET_FILE_DIR:version>/libstdc++-6.dll"
-    COMMAND ${CMAKE_COMMAND} -E copy_if_different
-      "${MINGW_DLL_DIR}/libwinpthread-1.dll"
-      "$<TARGET_FILE_DIR:version>/libwinpthread-1.dll"
+  execute_process(
+    COMMAND ${CMAKE_CXX_COMPILER} -print-search-dirs
+    OUTPUT_VARIABLE mingw_search_dirs
+    OUTPUT_STRIP_TRAILING_WHITESPACE
   )
+
+  set(mingw_runtime_search_roots)
+  foreach(search_line libraries programs)
+    string(REGEX MATCH "${search_line}: =([^\n]+)" _ "${mingw_search_dirs}")
+    if(CMAKE_MATCH_1)
+      string(REPLACE ":" ";" search_paths "${CMAKE_MATCH_1}")
+      list(APPEND mingw_runtime_search_roots ${search_paths})
+    endif()
+  endforeach()
+
+  list(REMOVE_DUPLICATES mingw_runtime_search_roots)
+
+  foreach(runtime_dll libgcc_s_seh-1.dll libstdc++-6.dll libwinpthread-1.dll)
+    unset(runtime_dll_path CACHE)
+    find_file(runtime_dll_path
+      NAMES ${runtime_dll}
+      PATHS ${mingw_runtime_search_roots}
+      NO_DEFAULT_PATH
+    )
+
+    if(runtime_dll_path)
+      add_custom_command(TARGET version POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                "${runtime_dll_path}"
+                $<TARGET_FILE_DIR:version>
+        COMMENT "Copying ${runtime_dll} next to version.dll"
+      )
+    else()
+      message(WARNING "Could not locate ${runtime_dll} under ${mingw_runtime_search_roots}")
+    endif()
+  endforeach()
 endif()
