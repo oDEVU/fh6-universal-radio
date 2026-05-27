@@ -65,3 +65,19 @@ set_target_properties(version PROPERTIES
     OUTPUT_NAME version
     PREFIX ""
 )
+
+# Copy MinGW runtime DLLs to build directory
+if(MINGW)
+  set(MINGW_DLL_DIR "/usr/x86_64-w64-mingw32/sys-root/mingw/bin")
+  add_custom_command(TARGET version POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+      "${MINGW_DLL_DIR}/libgcc_s_seh-1.dll"
+      "$<TARGET_FILE_DIR:version>/libgcc_s_seh-1.dll"
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+      "${MINGW_DLL_DIR}/libstdc++-6.dll"
+      "$<TARGET_FILE_DIR:version>/libstdc++-6.dll"
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+      "${MINGW_DLL_DIR}/libwinpthread-1.dll"
+      "$<TARGET_FILE_DIR:version>/libwinpthread-1.dll"
+  )
+endif()
